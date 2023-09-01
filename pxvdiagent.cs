@@ -57,7 +57,7 @@ namespace pxvdi_agent
             hwinfo();
             if (Vars.Instance.Manufacturer != "ProxmoxVE") {
 
-                MessageBox.Show("检测到不是Proxmox VE VM，程序将退出！");
+                MessageBox.Show("检测到不是Proxmox VE VM！");
             }
 
         }
