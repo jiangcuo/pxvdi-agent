@@ -39,26 +39,58 @@ namespace pxvdi_agent
     }
     public class pxvdi_agent
     {
-        public static string hwinfo() {
-            var moc = new ManagementClass("Win32_ComputerSystemProduct").GetInstances();
-            foreach (ManagementObject mo in moc)
+        private static string GetSystemUuid()
+        {
+            try
             {
-                Vars.Instance.vmid = mo.Properties["IdentifyingNumber"].Value.ToString();
-                Vars.Instance.Manufacturer = mo.Properties["Vendor"].Value.ToString();
+                // 读取主板序列号 (smbios type=2)
+                var process = new Process
+                {
+                    StartInfo = new ProcessStartInfo
+                    {
+                        FileName = "wmic",
+                        Arguments = "baseboard get serialnumber",
+                        RedirectStandardOutput = true,
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    }
+                };
+
+                process.Start();
+                string output = process.StandardOutput.ReadToEnd();
+                process.WaitForExit();
+
+                // 解析输出，跳过标题行
+                var lines = output.Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries);
+                if (lines.Length > 1)
+                {
+                    string uuid = lines[1].Trim();
+                    return !string.IsNullOrEmpty(uuid) ? uuid : "未能检测到UUID";
+                }
+
+                return "未能检测到UUID";
             }
+            catch (Exception ex)
+            {
+                return "UUID检测失败";
+            }
+        }
+
+        public static string hwinfo() {
             Vars.Instance.domain = System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties().DomainName;
             Vars.Instance.pcname = System.Net.NetworkInformation.IPGlobalProperties.GetIPGlobalProperties().HostName;
             Vars.Instance.Username = System.Environment.UserName;
+            Vars.Instance.vmid = GetSystemUuid();
 
             return "ok";
         }
 
         public static void hwcheck() {
             hwinfo();
-            if (Vars.Instance.Manufacturer != "ProxmoxVE") {
+            //if (Vars.Instance.Manufacturer != "ProxmoxVE") {
 
-                MessageBox.Show("检测到不是Proxmox VE VM！");
-            }
+            //    MessageBox.Show("检测到不是Proxmox VE VM！");
+            //}
 
         }
 
@@ -246,7 +278,6 @@ namespace pxvdi_agent
 				<HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
 				<SkipUserOOBE>true</SkipUserOOBE>
 				<SkipMachineOOBE>true</SkipMachineOOBE>
-				<UnattendEnableRetailDemo>true</UnattendEnableRetailDemo>
 				<NetworkLocation>Work</NetworkLocation>
 			</OOBE>
 		</component>
