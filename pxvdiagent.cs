@@ -39,6 +39,10 @@ namespace pxvdi_agent
     }
     public class pxvdi_agent
     {
+        private static readonly XNamespace UnattendNamespace = "urn:schemas-microsoft-com:unattend";
+        private static readonly XNamespace WcmNamespace = "http://schemas.microsoft.com/WMIConfig/2002/State";
+        private static readonly XNamespace XsiNamespace = "http://www.w3.org/2001/XMLSchema-instance";
+
         private static string GetSystemUuid()
         {
             try
@@ -247,47 +251,122 @@ namespace pxvdi_agent
             }
         }
 
-        public static void sysprep() {
-            string unattend = @"
-<?xml version=""1.0"" encoding=""utf-8""?>
-<unattend xmlns=""urn:schemas-microsoft-com:unattend"">
-	<settings pass=""specialize"">
-		<component name=""Microsoft-Windows-UnattendedJoin"" processorArchitecture=""amd64"" publicKeyToken=""31bf3856ad364e35"" language=""neutral"" versionScope=""nonSxS"" xmlns:wcm=""http://schemas.microsoft.com/WMIConfig/2002/State"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
-			<Identification>
-				<Credentials>
-					<Domain>"+Vars._Instance.domain+@"</Domain>
-					<Password>" + Vars._Instance.Password + @"</Password>
-					<Username>"+ Vars._Instance.Username+"@"+Vars._Instance.domain + @"</Username>
-				</Credentials>
-				<JoinDomain>"+Vars._Instance.domain+@"</JoinDomain>
-			</Identification>
-		</component>
-	</settings>
-	<settings pass=""oobeSystem"">
-		<component name=""Microsoft-Windows-Shell-Setup"" processorArchitecture=""amd64"" publicKeyToken=""31bf3856ad364e35"" language=""neutral"" versionScope=""nonSxS"" xmlns:wcm=""http://schemas.microsoft.com/WMIConfig/2002/State"" xmlns:xsi=""http://www.w3.org/2001/XMLSchema-instance"">
-			<OOBE>
-				<VMModeOptimizations>
-					<SkipAdministratorProfileRemoval>true</SkipAdministratorProfileRemoval>
-					<SkipWinREInitialization>true</SkipWinREInitialization>
-					<SkipNotifyUILanguageChange>true</SkipNotifyUILanguageChange>
-				</VMModeOptimizations>
-				<HideEULAPage>true</HideEULAPage>
-				<HideLocalAccountScreen>true</HideLocalAccountScreen>
-				<HideOEMRegistrationScreen>true</HideOEMRegistrationScreen>
-				<HideOnlineAccountScreens>true</HideOnlineAccountScreens>
-				<HideWirelessSetupInOOBE>true</HideWirelessSetupInOOBE>
-				<SkipUserOOBE>true</SkipUserOOBE>
-				<SkipMachineOOBE>true</SkipMachineOOBE>
-				<NetworkLocation>Work</NetworkLocation>
-			</OOBE>
-		</component>
-	</settings>
-</unattend>";
-            string unattendpath = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)+ "\\unattend.xml";
-            File.WriteAllText(unattendpath,unattend);
+        private static XElement CreateComponent(string componentName, params object[] content)
+        {
+            return new XElement(
+                UnattendNamespace + "component",
+                new XAttribute("name", componentName),
+                new XAttribute("processorArchitecture", "amd64"),
+                new XAttribute("publicKeyToken", "31bf3856ad364e35"),
+                new XAttribute("language", "neutral"),
+                new XAttribute("versionScope", "nonSxS"),
+                new XAttribute(XNamespace.Xmlns + "wcm", WcmNamespace),
+                new XAttribute(XNamespace.Xmlns + "xsi", XsiNamespace),
+                content
+            );
+        }
+
+        private static string FormatDomainUsername(string username, string domain)
+        {
+            if (string.IsNullOrWhiteSpace(username))
+            {
+                return string.Empty;
+            }
+
+            if (username.Contains("@") || username.Contains("\\"))
+            {
+                return username;
+            }
+
+            return username + "@" + domain;
+        }
+
+        private static XDocument BuildUnattendDocument(bool useDomainSysprep, bool skipOobe)
+        {
+            XElement root = new XElement(UnattendNamespace + "unattend");
+
+            if (useDomainSysprep)
+            {
+                root.Add(
+                    new XElement(
+                        UnattendNamespace + "settings",
+                        new XAttribute("pass", "specialize"),
+                        CreateComponent(
+                            "Microsoft-Windows-UnattendedJoin",
+                            new XElement(
+                                UnattendNamespace + "Identification",
+                                new XElement(
+                                    UnattendNamespace + "Credentials",
+                                    new XElement(UnattendNamespace + "Domain", Vars.Instance.domain),
+                                    new XElement(UnattendNamespace + "Password", Vars.Instance.Password),
+                                    new XElement(UnattendNamespace + "Username", FormatDomainUsername(Vars.Instance.Username, Vars.Instance.domain))
+                                ),
+                                new XElement(UnattendNamespace + "JoinDomain", Vars.Instance.domain)
+                            )
+                        )
+                    )
+                );
+            }
+
+            if (skipOobe)
+            {
+                root.Add(
+                    new XElement(
+                        UnattendNamespace + "settings",
+                        new XAttribute("pass", "oobeSystem"),
+                        CreateComponent(
+                            "Microsoft-Windows-Shell-Setup",
+                            new XElement(
+                                UnattendNamespace + "OOBE",
+                                new XElement(
+                                    UnattendNamespace + "VMModeOptimizations",
+                                    new XElement(UnattendNamespace + "SkipAdministratorProfileRemoval", true),
+                                    new XElement(UnattendNamespace + "SkipWinREInitialization", true),
+                                    new XElement(UnattendNamespace + "SkipNotifyUILanguageChange", true)
+                                ),
+                                new XElement(UnattendNamespace + "HideEULAPage", true),
+                                new XElement(UnattendNamespace + "HideOEMRegistrationScreen", true),
+                                new XElement(UnattendNamespace + "HideOnlineAccountScreens", true),
+                                new XElement(UnattendNamespace + "HideWirelessSetupInOOBE", true),
+                                new XElement(UnattendNamespace + "ProtectYourPC", 3),
+                                new XElement(UnattendNamespace + "NetworkLocation", "Work"),
+                                new XElement(UnattendNamespace + "UnattendEnableRetailDemo", false)
+                            )
+                        )
+                    )
+                );
+            }
+
+            return new XDocument(new XDeclaration("1.0", "utf-8", null), root);
+        }
+
+        public static void sysprep(bool useDomainSysprep, bool skipOobe) {
+            string unattendpath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "unattend.xml");
+
+            if (useDomainSysprep || skipOobe)
+            {
+                XmlWriterSettings writerSettings = new XmlWriterSettings
+                {
+                    Encoding = new UTF8Encoding(false),
+                    Indent = true,
+                    OmitXmlDeclaration = false
+                };
+
+                using (XmlWriter writer = XmlWriter.Create(unattendpath, writerSettings))
+                {
+                    BuildUnattendDocument(useDomainSysprep, skipOobe).Save(writer);
+                }
+            }
+
             Process p = new Process();
             p.StartInfo.FileName = @"C:\\Windows\\sysnative\\Sysprep\\sysprep.exe";
-            p.StartInfo.Arguments = @"/oobe  /generalize /shutdown /unattend:" + unattendpath;
+            p.StartInfo.Arguments = @"/oobe /generalize /shutdown /mode:vm";
+
+            if (useDomainSysprep || skipOobe)
+            {
+                p.StartInfo.Arguments += " /unattend:" + unattendpath;
+            }
+
             p.StartInfo.UseShellExecute = false;
             p.StartInfo.RedirectStandardOutput = true;
             p.Start();

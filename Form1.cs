@@ -65,7 +65,7 @@ namespace pxvdi_agent
             {
                 if (MessageBox.Show("系统将进行封装，此操作不可逆，确定继续吗？", "警告", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
                 {
-                    pxvdi_agent.sysprep();
+                    pxvdi_agent.sysprep(true, chkSkipOOBE.Checked);
                 }
             }
             else
@@ -205,6 +205,8 @@ namespace pxvdi_agent
         
         private void btnSysprep_Click(object sender, EventArgs e)
         {
+            bool useDomainSysprep = chkDomainSysprep.Checked;
+
             // 检查是否有前缀
             if (string.IsNullOrEmpty(txtPCNamePrefix.Text))
             {
@@ -213,7 +215,7 @@ namespace pxvdi_agent
             }
             
             // 如果勾选了域封装，检查域信息
-            if (chkDomainSysprep.Checked)
+            if (useDomainSysprep)
             {
                 if (string.IsNullOrEmpty(txtDomainName.Text) || 
                     string.IsNullOrEmpty(txtDomainUser.Text) || 
@@ -235,7 +237,7 @@ namespace pxvdi_agent
             // 确认操作
             if (MessageBox.Show("系统将进行封装，此操作不可逆，确定继续吗？", "警告", MessageBoxButtons.YesNo, MessageBoxIcon.Warning) == DialogResult.Yes)
             {
-                pxvdi_agent.sysprep();
+                pxvdi_agent.sysprep(useDomainSysprep, chkSkipOOBE.Checked);
             }
         }
         

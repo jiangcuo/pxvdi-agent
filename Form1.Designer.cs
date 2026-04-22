@@ -316,15 +316,13 @@
             // chkSkipOOBE
             // 
             this.chkSkipOOBE.AutoSize = true;
-            this.chkSkipOOBE.Checked = true;
-            this.chkSkipOOBE.CheckState = System.Windows.Forms.CheckState.Checked;
             this.chkSkipOOBE.Font = new System.Drawing.Font("微软雅黑", 9F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(134)));
             this.chkSkipOOBE.Location = new System.Drawing.Point(222, 58);
             this.chkSkipOOBE.Margin = new System.Windows.Forms.Padding(2);
             this.chkSkipOOBE.Name = "chkSkipOOBE";
             this.chkSkipOOBE.Size = new System.Drawing.Size(86, 21);
             this.chkSkipOOBE.TabIndex = 4;
-            this.chkSkipOOBE.Text = "跳过OOBE";
+            this.chkSkipOOBE.Text = "OOBE优化";
             this.chkSkipOOBE.UseVisualStyleBackColor = true;
             // 
             // groupBox1
@@ -982,4 +980,3 @@
         private System.Windows.Forms.Panel panel1;
     }
 }
-
